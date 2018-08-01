@@ -45,7 +45,7 @@ def plot_configuration(positions, show=False, out="configuration.pdf"):
     ax.set_aspect("equal")
     ax.axis('off')
     pyplot.tight_layout()
-    pyplot.savefig("small_trial.pdf")
+    pyplot.savefig(out)
     if show:
         pyplot.show()
     pyplot.close()
