@@ -12,6 +12,8 @@ def random_configuration(n):
     assert numpy.allclose(norms, numpy.ones_like(norms))
     return points
 
+
+
 def plot_configuration(positions, charge_center=True, show=False, out="configuration.pdf"):
     x, y, z = positions.T
     fig = pyplot.figure(figsize=(4, 4))
@@ -69,41 +71,97 @@ def potential_energy(positions):
     return 0.5 * energy
 
 
-def new_position_in_vicinity(position, sigma=0.1):
-    new_position = position + numpy.random.normal(loc=0.0, scale=sigma, size=3)
+def new_position_in_vicinity(position, sigma):
+    new_position = position + sigma * numpy.random.normal(size=3)
     new_position /= numpy.linalg.norm(new_position)
     return new_position
 
 
-def metropolis(positions, sigma=0.01, T=0.0001):
+def metropolis_MC(positions, sigma, T=0.000001):
+    rejects = 0
     for _ in range(len(positions)):
-        randInt = numpy.random.randint(0, len(positions))
-        oldPosition = positions[randInt]
-        oldEnergy = local_potential_energy(randInt, positions)
-        positions[randInt] = new_position_in_vicinity(positions[randInt], sigma)
-        newEnergy = local_potential_energy(randInt, positions)
-        deltaE = newEnergy - oldEnergy
-        if deltaE <= 0:
-            pass
-        else:
-            if numpy.random.uniform() <= numpy.exp(-deltaE / T):
-                pass
-            else:
-                positions[randInt] = oldPosition
+        index = numpy.random.randint(0, len(positions))
+
+        old_position = positions[index].copy()
+        old_energy = local_potential_energy(index, positions)
+
+        positions[index] = new_position_in_vicinity(positions[index], sigma)
+        new_energy = local_potential_energy(index, positions)
+
+        delta_enery = new_energy - old_energy
+
+        if delta_enery > 0 and numpy.random.uniform() > numpy.exp(-delta_enery / T):
+            rejects += 1
+            positions[index] = old_position
+
+    return rejects
 
 
 
 @click.command()
-@click.option("-n", default=5)
-def main(n):
+@click.option("-n", default=8)
+@click.option("-mcs", default=10000)
+@click.option("-sigma", default=0.001)
+def main(n, mcs, sigma):
     positions = random_configuration(n)
-    plot_configuration(positions)
-    E = local_potential_energy(0, positions)
-    for _ in range(10000):
-        metropolis(positions)
-        print(potential_energy(positions))
-    plot_configuration(positions, charge_center=True, show=False, out="new.pdf")
+    # plot_configuration(positions)
 
+    energy = []
+    for _ in range(mcs):
+        rejects = metropolis_MC(positions, sigma)
+        energy.append(potential_energy(positions))
+
+
+    # plot_configuration(positions, charge_center=True, show=False, out="new.pdf")
+
+    print(numpy.mean(positions, axis=0))
+    print(potential_energy(positions), sigma)
+
+    # pyplot.figure()
+    # pyplot.plot(range(1, mcs + 1), energy, "-r")
+    # pyplot.grid()
+    # pyplot.xlabel(r"$time \ \rm [MCS]$", fontsize=20)
+    # pyplot.ylabel(r"$U \ \rm [adim.]$", fontsize=20)
+    # pyplot.title(r"$\sigma = %s$" % sigma)
+    # pyplot.tight_layout()
+    # pyplot.savefig("energy_vs_time.pdf")
+    # pyplot.close()
+
+    minimum = {}
+    for i, p1 in enumerate(positions):
+        dists = []
+        for j, p2 in enumerate(positions):
+            if (i != j):
+                dists.append(numpy.linalg.norm(p1 - p2))
+        print(i, dists)
+        minimum[i] = min(dists)
+
+
+    epsilon = 1e-1
+    lines = []
+    for i, p1 in enumerate(positions):
+        min_dist = minimum[i]
+        for j, p2 in enumerate(positions):
+            if (i != j):
+                dist = numpy.linalg.norm(p1 - p2)
+                if dist <= (min_dist + epsilon):
+                    lines.append((i, j))
+
+    x, y, z = positions.T
+    fig = pyplot.figure()
+    ax = fig.add_subplot(111, projection="3d")
+    ax.scatter(x, y, z)
+    for i, j in lines:
+        xl = positions[i][0], positions[j][0]
+        yl = positions[i][1], positions[j][1]
+        zl = positions[i][2], positions[j][2]
+        ax.plot(xl, yl, zl, "-k")
+    ax.set_xlim(-1, 1)
+    ax.set_ylim(-1, 1)
+    ax.set_zlim(-1, 1)
+    ax.set_aspect("equal")
+    pyplot.show()
+    pyplot.close()
 
 
 if __name__ == '__main__':
