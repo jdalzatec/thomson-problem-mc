@@ -99,9 +99,9 @@ def metropolis_MC(positions, sigma, T=0.000001):
 
 
 @click.command()
-@click.option("-n", default=8)
-@click.option("-mcs", default=10000)
-@click.option("-sigma", default=0.001)
+@click.option("-n", default=70)
+@click.option("-mcs", default=1000)
+@click.option("-sigma", default=0.01)
 def main(n, mcs, sigma):
     positions = random_configuration(n)
     # plot_configuration(positions)
@@ -117,15 +117,15 @@ def main(n, mcs, sigma):
     print(numpy.mean(positions, axis=0))
     print(potential_energy(positions), sigma)
 
-    # pyplot.figure()
-    # pyplot.plot(range(1, mcs + 1), energy, "-r")
-    # pyplot.grid()
-    # pyplot.xlabel(r"$time \ \rm [MCS]$", fontsize=20)
-    # pyplot.ylabel(r"$U \ \rm [adim.]$", fontsize=20)
-    # pyplot.title(r"$\sigma = %s$" % sigma)
-    # pyplot.tight_layout()
-    # pyplot.savefig("energy_vs_time.pdf")
-    # pyplot.close()
+    pyplot.figure()
+    pyplot.plot(range(1, mcs + 1), energy, "-r")
+    pyplot.grid()
+    pyplot.xlabel(r"$time \ \rm [MCS]$", fontsize=20)
+    pyplot.ylabel(r"$U \ \rm [adim.]$", fontsize=20)
+    pyplot.title(r"$\sigma = %s$" % sigma)
+    pyplot.tight_layout()
+    pyplot.savefig("energy_vs_time.pdf")
+    pyplot.close()
 
     minimum = {}
     for i, p1 in enumerate(positions):
@@ -133,24 +133,23 @@ def main(n, mcs, sigma):
         for j, p2 in enumerate(positions):
             if (i != j):
                 dists.append(numpy.linalg.norm(p1 - p2))
-        print(i, dists)
         minimum[i] = min(dists)
 
 
-    epsilon = 1e-1
+    epsilon = 1e-2
     lines = []
     for i, p1 in enumerate(positions):
         min_dist = minimum[i]
         for j, p2 in enumerate(positions):
             if (i != j):
                 dist = numpy.linalg.norm(p1 - p2)
-                if dist <= (min_dist + epsilon):
+                if dist <= (1.4 * min_dist):
                     lines.append((i, j))
 
     x, y, z = positions.T
     fig = pyplot.figure()
     ax = fig.add_subplot(111, projection="3d")
-    ax.scatter(x, y, z)
+    ax.scatter(x, y, z, color="crimson", s=20)
     for i, j in lines:
         xl = positions[i][0], positions[j][0]
         yl = positions[i][1], positions[j][1]
