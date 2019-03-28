@@ -13,50 +13,6 @@ def random_configuration(n):
     return points
 
 
-
-def plot_configuration(positions, charge_center=True, show=False, out="configuration.pdf"):
-    x, y, z = positions.T
-    fig = pyplot.figure(figsize=(4, 4))
-    ax = fig.add_subplot(111, projection="3d")
-
-    u = numpy.linspace(0, 2.0 * numpy.pi, 200)
-    v = numpy.linspace(0, numpy.pi, 200)
-    lx = 1.0 * numpy.outer(numpy.cos(u), numpy.sin(v))
-    ly = 1.0 * numpy.outer(numpy.sin(u), numpy.sin(v))
-    lz = 1.0 * numpy.outer(numpy.ones(numpy.size(u)), numpy.cos(v))
-
-    # Plot the surface
-    ax.plot_surface(lx, ly, lz, color='b', alpha=0.1, lw=0, rstride=4, cstride=4,)
-
-    u = numpy.linspace(0, 2.0 * numpy.pi, 20)
-    v = numpy.linspace(0, numpy.pi, 20)
-    lx = 1.0 * numpy.outer(numpy.cos(u), numpy.sin(v))
-    ly = 1.0 * numpy.outer(numpy.sin(u), numpy.sin(v))
-    lz = 1.0 * numpy.outer(numpy.ones(numpy.size(u)), numpy.cos(v))
-    ax.plot_wireframe(lx, ly, lz, color='b', alpha=0.1, lw=0.5)
-
-    # Plot the surface lines
-    ax.scatter(x, y, z, s=10, color="crimson", edgecolor="black", lw=0.5)
-
-    if charge_center:
-        xm, ym, zm = numpy.mean(positions, axis=0)
-        ax.scatter(xm, ym, zm, s=10, color="black")
-
-    ax.set_xlim(-1, 1)
-    ax.set_ylim(-1, 1)
-    ax.set_zlim(-1, 1)
-    ax.set_xticks([])
-    ax.set_yticks([])
-    ax.set_zticks([])
-    ax.set_aspect("equal")
-    ax.axis('off')
-    pyplot.tight_layout()
-    pyplot.savefig(out)
-    if show:
-        pyplot.show()
-    pyplot.close()
-
-
 def local_potential_energy(index, positions):
     assert (index < len(positions))
     norms = numpy.linalg.norm(positions - positions[index], axis=1)
@@ -77,29 +33,31 @@ def new_position_in_vicinity(position, sigma):
     return new_position
 
 
-def metropolis_MC(positions, sigma, T=0.000001):
-    rejects = 0
+def metropolis(index, positions, sigma, T):
+    old_position = positions[index].copy()
+    old_energy = local_potential_energy(index, positions)
+
+    positions[index] = new_position_in_vicinity(positions[index], sigma)
+    new_energy = local_potential_energy(index, positions)
+
+    delta_enery = new_energy - old_energy
+
+    if delta_enery > 0 and numpy.random.uniform() > numpy.exp(-delta_enery / T):
+        positions[index] = old_position
+        return False
+
+    return True 
+
+
+def MC(positions, sigma, T=0.000001):
     for _ in range(len(positions)):
         index = numpy.random.randint(0, len(positions))
-
-        old_position = positions[index].copy()
-        old_energy = local_potential_energy(index, positions)
-
-        positions[index] = new_position_in_vicinity(positions[index], sigma)
-        new_energy = local_potential_energy(index, positions)
-
-        delta_enery = new_energy - old_energy
-
-        if delta_enery > 0 and numpy.random.uniform() > numpy.exp(-delta_enery / T):
-            rejects += 1
-            positions[index] = old_position
-
-    return rejects
+        metropolis(index, positions, sigma, T)
 
 
 
 @click.command()
-@click.option("-n", default=70)
+@click.option("-n", default=12)
 @click.option("-mcs", default=1000)
 @click.option("-sigma", default=0.01)
 def main(n, mcs, sigma):
@@ -108,7 +66,7 @@ def main(n, mcs, sigma):
 
     energy = []
     for _ in range(mcs):
-        rejects = metropolis_MC(positions, sigma)
+        MC(positions, sigma)
         energy.append(potential_energy(positions))
 
 
