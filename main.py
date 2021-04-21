@@ -14,7 +14,7 @@ def random_configuration(n):
 
 
 def local_potential_energy(index, positions):
-    assert (index < len(positions))
+    assert index < len(positions)
     norms = numpy.linalg.norm(positions - positions[index], axis=1)
     norms = norms[norms != 0.0]
     return numpy.sum(1.0 / norms)
@@ -46,14 +46,13 @@ def metropolis(index, positions, sigma, T):
         positions[index] = old_position
         return False
 
-    return True 
+    return True
 
 
 def MC(positions, sigma, T=0.000001):
     for _ in range(len(positions)):
         index = numpy.random.randint(0, len(positions))
         metropolis(index, positions, sigma, T)
-
 
 
 @click.command()
@@ -68,7 +67,6 @@ def main(n, mcs, sigma):
     for _ in range(mcs):
         MC(positions, sigma)
         energy.append(potential_energy(positions))
-
 
     # plot_configuration(positions, charge_center=True, show=False, out="new.pdf")
 
@@ -89,17 +87,16 @@ def main(n, mcs, sigma):
     for i, p1 in enumerate(positions):
         dists = []
         for j, p2 in enumerate(positions):
-            if (i != j):
+            if i != j:
                 dists.append(numpy.linalg.norm(p1 - p2))
         minimum[i] = min(dists)
-
 
     epsilon = 1e-2
     lines = []
     for i, p1 in enumerate(positions):
         min_dist = minimum[i]
         for j, p2 in enumerate(positions):
-            if (i != j):
+            if i != j:
                 dist = numpy.linalg.norm(p1 - p2)
                 if dist <= (1.4 * min_dist):
                     lines.append((i, j))
@@ -116,10 +113,10 @@ def main(n, mcs, sigma):
     ax.set_xlim(-1, 1)
     ax.set_ylim(-1, 1)
     ax.set_zlim(-1, 1)
-    ax.set_aspect("equal")
-    pyplot.show()
+    # ax.set_aspect("equal")
+    pyplot.savefig("output.pdf")
     pyplot.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
