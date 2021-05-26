@@ -1,10 +1,21 @@
-import numpy
-from matplotlib import pyplot
-from mpl_toolkits.mplot3d import Axes3D
 import click
+import numpy
+import pandas
+from matplotlib import pyplot
+from tqdm import tqdm
+from utils import plot_particle_distribution
 
-# return a random configuration of n particles over a unitary sphere
+
 def random_configuration(n):
+    """Returns a random configuration of n particles over a unitary sphere.
+
+    Arguments:
+        n [int]: The number of particles.
+
+    Returns:
+        numpy.ndarray: Array with the particles distribution.
+    """
+
     points = numpy.random.normal(size=(n, 3))
     norms = numpy.linalg.norm(points, axis=1)
     points = numpy.array([points[i] / norms[i] for i in range(n)])
@@ -13,109 +24,164 @@ def random_configuration(n):
     return points
 
 
-def local_potential_energy(index, positions):
-    assert index < len(positions)
-    norms = numpy.linalg.norm(positions - positions[index], axis=1)
+def local_potential_energy(index, particles_distribution):
+    """Computes the local potential energy for the particle in the position `index`.
+
+    Arguments:
+        index [int]: The particle index in the particles distribution.
+        particles_distribution [numpy.ndarray]: The particles distribution.
+
+    Returns:
+        float: The local potential energy for the particle in the position `index`.
+    """
+
+    assert index < len(particles_distribution)
+    norms = numpy.linalg.norm(
+        particles_distribution - particles_distribution[index], axis=1
+    )
     norms = norms[norms != 0.0]
     return numpy.sum(1.0 / norms)
 
 
-def potential_energy(positions):
+def total_potential_energy(particles_distribution):
+    """Computes the total potential energy.
+
+    Arguments:
+        particles_distribution [numpy.ndarray]: The particles distribution.
+
+    Returns:
+        float: The total potential energy for the particle in the position `index`.
+    """
+
     energy = 0.0
-    for i in range(len(positions)):
-        energy += local_potential_energy(i, positions)
+    for i in range(len(particles_distribution)):
+        energy += local_potential_energy(i, particles_distribution)
     return 0.5 * energy
 
 
 def new_position_in_vicinity(position, sigma):
+    """Returns a new position based on a `sigma` parameter. The lower `sigma`, the near
+    the new point for the original position.
+
+    Arguments:
+        position [numpy.3darray]: The original position to be used to create a new one.
+        sigma [float]: Displacement parameter.
+
+    Returns:
+        [numpy.3darray]: The new position.
+    """
+
     new_position = position + sigma * numpy.random.normal(size=3)
     new_position /= numpy.linalg.norm(new_position)
     return new_position
 
 
-def metropolis(index, positions, sigma, T):
-    old_position = positions[index].copy()
-    old_energy = local_potential_energy(index, positions)
+def metropolis(index, particles_distribution, sigma, T):
+    """Applies metropolis algorithm to generate a new state (new position) for the
+    particle in the position `index` based on the temperature (T) and the parameter
+    of displacement `sigma`. If the energy does not decrease when trying to create a new
+    state, it guarantees that the original state is not altered.
 
-    positions[index] = new_position_in_vicinity(positions[index], sigma)
-    new_energy = local_potential_energy(index, positions)
+    Arguments:
+        index [int]: The index for the particle that we want to move.
+        particles_distribution [numpy.ndarray]: The particles distribution.
+        sigma [float]: Displacement parameter.
+        T [float]: Temperature.
 
-    delta_enery = new_energy - old_energy
+    Returns:
+        bool: A boolean that indicates if it was created a new state or not.
 
-    if delta_enery > 0 and numpy.random.uniform() > numpy.exp(-delta_enery / T):
-        positions[index] = old_position
+    """
+
+    assert T > 0
+    old_position = particles_distribution[index].copy()
+    old_energy = local_potential_energy(index, particles_distribution)
+
+    particles_distribution[index] = new_position_in_vicinity(
+        particles_distribution[index], sigma
+    )
+    new_energy = local_potential_energy(index, particles_distribution)
+
+    delta_energy = new_energy - old_energy
+
+    if numpy.random.uniform() > numpy.exp(-delta_energy / T):
+        particles_distribution[index] = old_position
         return False
 
     return True
 
 
-def MC(positions, sigma, T=0.000001):
-    for _ in range(len(positions)):
-        index = numpy.random.randint(0, len(positions))
-        metropolis(index, positions, sigma, T)
+def monte_carlo_step(particles_distribution, sigma, T):
+    """Applies N times the metropolis algorith on random positions, where N is the
+    number of particles in the system.
+
+    Arguments:
+        particles_distribution [numpy.ndarray]: The particles distribution.
+        sigma [float]: Displacement parameter.
+        T [float]: Temperature.
+
+    Returns:
+        int: The number of metropolis executions that return True.
+    """
+    n = len(particles_distribution)
+    accepted = 0
+    for _ in range(n):
+        index = numpy.random.randint(0, n)
+        accepted += metropolis(index, particles_distribution, sigma, T)
+
+    return accepted
 
 
 @click.command()
-@click.option("-n", default=12)
-@click.option("-mcs", default=1000)
-@click.option("-sigma", default=0.01)
-def main(n, mcs, sigma):
-    positions = random_configuration(n)
-    # plot_configuration(positions)
+@click.option("-n", default=12, show_default=True, help="Number of particles.")
+@click.option(
+    "--mcs", default=1000, show_default=True, help="Number of Monte Carlo steps."
+)
+@click.option(
+    "--sigma", default=0.01, show_default=True, help="Displacement parameter."
+)
+@click.option(
+    "--temp", default=0.01, show_default=True, help="Temperature (adimensional units)"
+)
+def main(n, mcs, sigma, temp):
+    particles_distribution = random_configuration(n)
 
-    energy = []
-    for _ in range(mcs):
-        MC(positions, sigma)
-        energy.append(potential_energy(positions))
+    data = pandas.DataFrame()
+    for _ in tqdm(range(mcs)):
+        accepted = monte_carlo_step(particles_distribution, sigma, temp)
 
-    # plot_configuration(positions, charge_center=True, show=False, out="new.pdf")
+        data = data.append(
+            {
+                "accepted_movements": accepted,
+                "total_potential_energy": total_potential_energy(
+                    particles_distribution
+                ),
+            },
+            ignore_index=True,
+        )
 
-    print(numpy.mean(positions, axis=0))
-    print(potential_energy(positions), sigma)
+    print("Mean position:", numpy.mean(particles_distribution, axis=0))
+    print("Total potential energy:", total_potential_energy(particles_distribution))
 
-    pyplot.figure()
-    pyplot.plot(range(1, mcs + 1), energy, "-r")
-    pyplot.grid()
-    pyplot.xlabel(r"$time \ \rm [MCS]$", fontsize=20)
-    pyplot.ylabel(r"$U \ \rm [adim.]$", fontsize=20)
-    pyplot.title(r"$\sigma = %s$" % sigma)
-    pyplot.tight_layout()
-    pyplot.savefig("energy_vs_time.pdf")
-    pyplot.close()
+    if click.confirm("Do you want to save evolution?", default=True):
+        fig = pyplot.figure()
+        data.total_potential_energy.plot()
+        pyplot.xlabel("MCS")
+        pyplot.ylabel("Accepted movements")
+        fig.savefig("total_potential_energy_evolution.pdf")
+        pyplot.close()
 
-    minimum = {}
-    for i, p1 in enumerate(positions):
-        dists = []
-        for j, p2 in enumerate(positions):
-            if i != j:
-                dists.append(numpy.linalg.norm(p1 - p2))
-        minimum[i] = min(dists)
+        fig = pyplot.figure()
+        data.accepted_movements.plot()
+        pyplot.xlabel("MCS")
+        pyplot.ylabel("Total potential energy")
+        fig.savefig("accepted_movements_evolution.pdf")
+        pyplot.close()
 
-    epsilon = 1e-2
-    lines = []
-    for i, p1 in enumerate(positions):
-        min_dist = minimum[i]
-        for j, p2 in enumerate(positions):
-            if i != j:
-                dist = numpy.linalg.norm(p1 - p2)
-                if dist <= (1.4 * min_dist):
-                    lines.append((i, j))
-
-    x, y, z = positions.T
-    fig = pyplot.figure()
-    ax = fig.add_subplot(111, projection="3d")
-    ax.scatter(x, y, z, color="crimson", s=20)
-    for i, j in lines:
-        xl = positions[i][0], positions[j][0]
-        yl = positions[i][1], positions[j][1]
-        zl = positions[i][2], positions[j][2]
-        ax.plot(xl, yl, zl, "-k")
-    ax.set_xlim(-1, 1)
-    ax.set_ylim(-1, 1)
-    ax.set_zlim(-1, 1)
-    # ax.set_aspect("equal")
-    pyplot.savefig("output.pdf")
-    pyplot.close()
+    if click.confirm("Do you want to save the final state?", default=True):
+        plot_particle_distribution(particles_distribution).write_image(
+            "final_particle_distribution.pdf"
+        )
 
 
 if __name__ == "__main__":
