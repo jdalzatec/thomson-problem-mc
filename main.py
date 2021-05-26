@@ -46,14 +46,14 @@ def main(n, mcs, sigma, temp):
         fig = pyplot.figure()
         data.total_potential_energy.plot()
         pyplot.xlabel("MCS")
-        pyplot.ylabel("Accepted movements")
+        pyplot.ylabel("Total potential energy")
         fig.savefig("total_potential_energy_evolution.pdf")
         pyplot.close()
 
         fig = pyplot.figure()
         data.accepted_movements.plot()
         pyplot.xlabel("MCS")
-        pyplot.ylabel("Total potential energy")
+        pyplot.ylabel("Accepted movements")
         fig.savefig("accepted_movements_evolution.pdf")
         pyplot.close()
 
