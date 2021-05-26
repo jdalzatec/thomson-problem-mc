@@ -69,7 +69,7 @@ if run_button:
         )
 
         progress_bar.progress((i + 1) / mcs)
-        mcs_text.write(f"Currently at {i + 1} step")
+        mcs_text.write(f"Step {i + 1} of {mcs}")
         plot_section.plotly_chart(plot_particle_distribution(particles_distribution))
         accepted_chart.add_rows([accepted])
         energy_chart.add_rows([energy])
