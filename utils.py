@@ -14,6 +14,7 @@ def plot_particle_distribution(particles_distribution):
     """
 
     x, y, z = particles_distribution.T
+
     fig = graph_objects.Figure(
         data=[
             graph_objects.Scatter3d(
@@ -27,9 +28,26 @@ def plot_particle_distribution(particles_distribution):
                     opacity=0.8,
                 ),
             )
-        ]
+        ],
     )
-    fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
+    fig.update_layout(
+        margin=dict(l=0, r=0, b=0, t=0),
+        scene_aspectmode="cube",
+        scene=dict(
+            xaxis=dict(
+                nticks=4,
+                range=[-1.2, 1.2],
+            ),
+            yaxis=dict(
+                nticks=4,
+                range=[-1.2, 1.2],
+            ),
+            zaxis=dict(
+                nticks=4,
+                range=[-1.2, 1.2],
+            ),
+        ),
+    )
     return fig
 
 
