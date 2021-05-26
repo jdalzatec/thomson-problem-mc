@@ -32,7 +32,7 @@ with streamlit.form(key="form"):
         mcs = streamlit.number_input("MCS", min_value=1, value=500)
 
     sigma = streamlit.slider(
-        "sigma", min_value=0.1, max_value=1.0, step=0.001, format="%.3f"
+        "sigma", min_value=0.001, max_value=1.0, step=0.001, format="%.3f"
     )
     temp = streamlit.slider(
         "Temperature", min_value=0.001, max_value=10.0, format="%.3f"
