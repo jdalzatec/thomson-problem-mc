@@ -14,7 +14,7 @@ from utils import (
 streamlit.header("Thomson problem")
 streamlit.write(
     """
-    This app lets you solve the
+    This app allows you to solve the
     [Thomson problem](https://en.wikipedia.org/wiki/Thomson_problem) numerically by
     using the [Monte Carlo method](https://en.wikipedia.org/wiki/Monte_Carlo_method).
     Also we use the [metropolis algorithm](https://www.sciencedirect.com/topics/computer-science/metropolis-algorithm)
